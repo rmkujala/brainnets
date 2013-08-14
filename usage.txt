@@ -1,0 +1,13 @@
+Using GIT:
+e.g. http://rogerdudler.github.io/git-guide/
+
+
+Using the brainnets python package:
+
+All the files generated, read, etc. byt the library will be in a user defined directory. 
+From now on we will call this directory ROOTDIR.
+
+1. The ROOTDIR should contain a file named 'brainnets_params.py', which contains all the user specified information needed in computations. File 'brainnets_sample_params.py' is supplied with the package. This should be edited by the user and renamed to 'brainnets_params'.
+2. Any python script/interactive session is expected to be started in the ROOTDIR.
+3. All the output generated will be in ROOTDIR or in a ROOTDIR's subdirectory.
+        -If the output is wanted elsewhere it needs to be specified

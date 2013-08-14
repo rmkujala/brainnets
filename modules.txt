@@ -1,0 +1,53 @@
+=== Module level structure of the brainnets package ===
+
+==== List of modules: =====
+* in order of "depth"
+
+#Params level:
+*brainnets_sample_params.py (used by all 2nd level stuff, if this module is availble)
+: a sample setup file for the user describing the details of the study
+: the package should however be (more or less) usable without these 
+: convenience functions 
+
+#Top level:
+*scripts.py
+: some (nice, simple in implementation) scripts which will run common analysis combinations 
+: (e.g. load data, generate network, compute globalProperties, 
+: compute globalProp statistics, plot statistics (in some way) )
+: (This file also for convenience instead of having multiple short script files.)
+
+#Second level:
+*parpropcomps.py (used by scripts.py)
+: functions for computing some or all of the properties
+: (in parallel, for )
+
+*statscomps.py (used by scripts.py)
+: functions for computing statistics for different 
+: (performing statistical testing) for some of the functions
+
+*plots.py (used by scripts.py)
+: plotting tools
+
+#Third level:
+*gencomps.py (used by parpropcomps.py)
+: contains functions for computing results based on
+: (non brain specific) data
+: all new things that are computed should be added here
+: i.e. contains macro, meso, and microscopic properties
+
+*netgen.py (used by parpropcomps.py)
+: generate network out of a adj. matrix
+
+*dataio.py (used by all 2nd level modules)
+: file input and output
+: determines also filenames if not given
+
+*statistics.py (used by plots.py and statscomps.py)
+: general statistical computations, includes internal parallellisation
+: this should be kept independent from any settings so that it can be easily used in other projects as well!
+
+#4th level:
+*settings.py (used by many..)
+: universal settings (fixed at all times) 
+: some default settings (that can be overridden by explicit commands)
+ 
