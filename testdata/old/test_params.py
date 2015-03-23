@@ -1,0 +1,16 @@
+movieFNames = ["movie_small_"+str(i)+".mat" for i in range(1,14)]
+restFNames = ["rest_small_"+str(i)+".mat" for i in range(1,14)]
+labels = ["movie", "rest"]
+colors = ["r", "b"]
+pRange = range(1,16,5)
+allFNames = movieFNames+restFNames
+blFName = "jointblacklist_small.mat"
+allBlFNames = [blFName]*len(allFNames)
+voxelInfoFileName = "rois6mm_final_plus_IF2.mat"
+paired=True
+nIt=10
+bsSamples = 100
+bsCoverage = 95
+nVoxels = 30
+density  = 50 #in percents
+includeMST = False

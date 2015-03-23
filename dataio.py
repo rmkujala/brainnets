@@ -1,280 +1,495 @@
+
+# third party
 import scipy.io
 import numpy as np
 import cPickle as pickle
-import os
-import brainnets_params as params
-	
-def loadPickle(fName):
-    f = open(fName, "rb")
+# import os
+# import collections
+# brainnets imports
+import settings
+import fname_conventions as fnc
+
+
+class DataIOError(Exception):
+
+    """
+    Exception raised for errors in the dataio module.
+
+    Parameters
+    ----------
+    expr : expr
+        input expression in which the error occurred
+    """
+
+    def __init__(self, msg):
+        self.msg = msg
+
+
+def blacklist_index_fname_to_blacklist_bool_list(fname, outfname,
+                                                 sample_adj_mat_fname):
+    """
+    Converts an (matlab based) index-based blacklist::
+
+        [3, 10, 12, ...]
+
+    to a list of booleans::
+
+        [True, True, False, True, ...]
+
+    Parameters
+    ----------
+    fname : str
+        path to the (matlab-indexed) blacklist
+    outfname : str
+        path to the to-be-created bool blacklist
+    sample_adj_mat_fname : str
+        path to one instance of a adjacency matrix
+    """
+    data = load_mat(fname, squeeze_me=True)
+    mat = load_adj_matrix_from_mat(sample_adj_mat_fname)
+    tot_n_nodes = len(mat)
+    ind_bl = data['blacklist'] - 1  # matlab indexing
+    if len(ind_bl) > 0:
+        assert isinstance(ind_bl[0], (int, long, np.integer))
+        #assert type(ind_bl[0]) is int
+    bl = index_blacklist_to_bool_blacklist(ind_bl, tot_n_nodes)
+    # because matlab seems to be unable to read
+    # boolean arrays created by scipy.savemat
+    bl = np.array(bl, dtype=float)
+    out_dict = {'blacklist': bl}
+    save(outfname, out_dict)
+
+
+def index_blacklist_to_bool_blacklist(ind_bl, tot_n_nodes):
+    """
+    Converts an python-indexed blacklist to a bool blacklist.
+
+    Parameters
+    ----------
+    ind_bl : list of ints
+        the index blacklist containing the indices
+    tot_n_nodes : int
+        the total number of nodes in the non-blacklisted data
+
+    Examples
+    --------
+    >>> ind_bl = [1, 2, 4]
+    >>> tot_n_nodes = 6
+    >>> index_blacklist_to_bool_blacklist(ind_bl, tot_n_nodes)
+    array([True, False, False, True, False, True])
+
+    """
+    blacklist = np.ones(tot_n_nodes, dtype=bool)
+    blacklist[ind_bl] = False
+    return blacklist
+
+
+def load_pickle(fname):
+    """
+    Simple wrapper for loading pickled data.
+
+    Parameters
+    ----------
+    fname : str
+        path to the pickle filename.
+
+    Returns
+    -------
+    data : the data in the file
+    """
+    f = open(fname, "rb")
     data = pickle.load(f)
     f.close()
     return data
-    
-def savePickle(fName, dataDict, overwrite=True):
-    """
-    Saves the dataDict to a pickle file.
-    If the pickled file exists (with data), the results will just be appended.
-    (In order to not lose any data)
-    """
-    if not overwrite and os.path.exists(fName):
-        #Be sure that dataDict is really a dictionary.
-        try:
-            f = open(fName, "rb")
-            data = pickle.load(f)
-            for key in dataDict:
-                data[key] = dataDict[key] #update old ones
-            f.close()
-            f = open(fName, "wb") #overwrite the old file
-            pickle.dump(data, f)
-            f.close()
-        except:
-            print "Something went wrong while saving/appending pickle data"
-            raise
-    else: #default behaviour
-        f = open(fName, "wb")
-        pickle.dump(dataDict, f)
-        f.close()
 
-def loadAdjMatrixFromMat(filename, varName = 'adj'):
+
+def load(fname, squeeze_me=True):
     """
-    Load a correlation matrix using .mat file format 
+    Load data from pickle of mat files.
+
+    Parameters
+    ----------
+    fname : str
+        path to the data
+    squeeze_me : bool
+        whether or not to squeeze data, if .mat file is loaded
     """
-    assert filename[:-4] == ".mat", "Trying to load incorrect file format (.mat)."
-    adjMatrix = scipy.io.loadmat(filename)[varName]
-    adjMatrix = np.triu(adjMatrix,1)
+    assert type(fname) is str
+    format = fname[-4:]
+    if format == ".pkl":
+        return load_pickle(fname)
+    elif format == ".mat":
+        return load_mat(fname, squeeze_me=squeeze_me)
+    else:
+        raise DataIOError('Unknown file format: ' + format +
+                          "\nSupported formats: '.pkl' and '.mat' ")
+
+
+def save(fname, data_dict):
+    """
+    Save data in pickle (.pkl) or matlab (.mat) file.
+    The format is deciphered from the fname ending (.pkl or .mat supported).
+
+    Parameters
+    ----------
+    fname : str
+    data_dict : dict
+        a dictionary containing the data to be outputted
+    """
+    assert type(data_dict) == dict
+    format = fname[-4:]
+    if format == ".pkl":
+        save_pickle(fname, data_dict)
+    elif format == ".mat":
+        scipy.io.savemat(fname, data_dict)
+    else:
+        raise DataIOError('Unknown file format: ' + format +
+                          "\nSupported formats: '.pkl' and '.mat' ")
+
+
+# def update_mapping(old, new):
+#     """
+#     Updates the old dictionary with the new.
+
+#     Source:
+
+#         http://stackoverflow.com/questions/3232943/
+#         update-value-of-a-nested-dictionary-of-varying-depth
+
+#     Tested it a couple of times and it seems to work -- Rainer
+#     """
+#     for k, v in new.iteritems():
+#         if isinstance(v, collections.Mapping):
+#             r = update_mapping(old.get(k, {}), v)
+#             old[k] = r
+#         else:
+#             old[k] = new[k]
+#     return old
+
+
+def save_pickle(fname, data_dict):  # , overwrite=True):
+    """
+    Saves the data_dict to a pickle file.
+
+    Parameters
+    ----------
+    fname : str
+        the path where the data is stored
+    data_dict : dict
+        dictionary containing the data to be outputted
+    """
+    with open(fname, 'wb') as f:
+        pickle.dump(data_dict, f, -1)
+
+
+def load_adj_matrix_from_mat(fname, var_name='adj'):
+    """
+    Load a correlation/adjacency matrix using .mat file format
+
+    Parameters
+    ----------
+    fname : str
+        path to the .mat file containing the  matrix
+    var_name : str
+        the variable name of the matrix
+    """
+    assert fname[-4:] == ".mat", "Trying to load incorrect file format"
+    adjMatrix = load_mat(fname, squeeze_me=False)[var_name]
+    adjMatrix = np.triu(adjMatrix, 1)
     return adjMatrix
-        
-def texOutputArray(array, outFileName, prec=2):
+
+
+def out_put_node_prop_to_nii(nodevals, out_fname,
+                             node_info_fname, blacklist_fname):
     """
-    Outputs an numpy array to a .tex format that can be inported to a master .tex document. 
-    """    
-    string = " \\\\\n".join([" & ".join(map( ('{0:.'+str(prec)+'f}').format, line)) for line in array])
-    f = open(outFileName, "w")
-    f.write(string)
-    f.close()
+    Could do this using nibabel (python) but so far just porting to the
+    matlab scripts by Enrico
 
-
-def outPutNodePropToNii(nodeVals, outFileName, roiInfoMFileName, blacklistFileName):
+    Parameters
+    ----------
+    nodevals : numpy array
+        the list of (unblacklisted) node values
+    out_fname : str
+        the name of the nii file
+    node_info_fname : str
+        the name of filename containing the information of
+        the ROIS (from Enrico)
+    blacklist_fname : str
+        the path to .mat file listing the blacklist
     """
-    Calls a matlab function to output the given values of a node property to
-    a nii volume.
+    from mlabwrap import mlab  # matlab is only imported if needed
+    mlab.addpath(settings.package_dir + "mfiles")
+    mlab.data2niivol(nodevals, blacklist_fname, node_info_fname, out_fname)
 
-    Arguments:
-        nodeVals: list of values with the original indexing (non blacklisted)
-        outFileName: the name of the file into which the volume info is written
-                        (should end with a .nii)
-        roiInfoFileName: the filename containing the ROI info 
-                        (passed directly to matlab)
-        blacklist: the list of blacklist nodes
+
+def get_ok_nodes(blacklist_fname):
     """
-    from mlabwrap import mlab 
-    mlab.addpath("/proj/networks/rmkujala/brain_fmri/code/src")
-    mlab.data2niivol(nodeVals, blacklistFileName, roiInfoMFileName, outFileName)
-    return
+    Loads list of ok/bad nodes as bool array from the file defined by the
+    blacklist_fname
 
-
-def getBlacklistedIndicesFromMat():
-    """Returns the blacklist using python indexing (starting from 0)"""
-    fName = params.blacklistNodesFileName
-    blacklist = scipy.io.loadmat(fName, squeeze_me = True)["blacklist"]
-    #in matlab indexing starts from one:
-    return np.array(blacklist)-1 
-
-def getOkIndices():
-    """Returns the valid nodes, based on the blacklist"""
-    nOld=params.mrNVoxels
-    blacklist=getBlacklistedIndicesFromMat()
-    old_indices = range(0,nOld)
-    newToOldMap = [index for index in old_indices if index not in blacklist]
-    return newToOldMap
-
-def filterBlacklisted(matrix):
-    """Filters a blacklisted matrix"""
-    nonBlNodes = getOkIndices()
-    filteredmat = matrix[nonBlNodes, :]
-    filteredmat = filteredmat[:,nonBlNodes]
-    return filteredmat
-
-def expand1DNodeValArrayToOldIndices(values):
+    Parameters
+    ----------
+    blacklist_fname : str
+        the path to the blacklist .mat file
     """
-    Expands a 1d node val array to indices used before removing the 
-    blacklisted nodes
+    data = load(blacklist_fname, squeeze_me=True)['blacklist']
+    return np.array(data, dtype=bool)
+
+
+def expand_link_val_array_to_non_bl_mat(values, blacklist_fname):
     """
-    nOld=params.nVoxels
-    newVals = np.zeros(nOld)    
-    newVals[getOkIndices()] = values
+    Expands a 1D array of linkwise val to the (original) 2D non-blacklisted
+    matrix.
+    This function is used sometimes to simplify visulization etc.
+    """
+    ok_nodes = get_ok_nodes(blacklist_fname).astype(np.int32)
+    new_to_old_mat_indices = np.nonzero(
+        np.triu(np.outer(ok_nodes, ok_nodes), 1)
+    )
+    valArray = np.zeros((len(ok_nodes), len(ok_nodes)))
+    valArray[new_to_old_mat_indices] = values
+    return valArray
+
+
+def expand_1D_node_vals_to_non_blacklisted_array(
+        values, ok_nodes, default_value=float("nan")):
+    """
+    Expands a 1d node val array to indices used before removing the
+    blacklisted nodes.
+    OkNodes as returned by the get_ok_nodes
+    """
+    assert np.sum(ok_nodes) == len(values)
+    newVals = np.ones(
+        len(ok_nodes), dtype=np.array(values).dtype) * default_value
+    newVals[ok_nodes] = values
+    assert len(newVals) == len(ok_nodes)
     return newVals
 
-def loadFilteredAdjacencyMatrix(mode, subject_number):
-    """
-    Loads blacklist-filtered adjacency matrix into memory and returns it
-    
-    Args:
-        mode: params.mode1 or params.mode2
-        subject_number: e.g 1
-    Returns:
-        The blacklist-filtered matrices in a list
-    """
-    fName = getCorrMatFname(mode, str(subject_number) )
-    return filterBlacklisted(loadAdjMatrixFromMat(fName))
-    
-def loadFlattenedAdjacencyMatrix(mode, i):
-    matrix = loadFilteredAdjacencyMatrix(mode, i)
-    twoDindices = np.triu_indices_from(matrix,1)
-    return matrix[twoDindices].flatten()
-    
-def loadFlattenedAdjacencyMatrices():
-    """
-    Load all mode1 and mode2 correlation matrices.
-    """
-    #computing these beforehand + pickling -> error with unpickling 
-    #(a bug in the pickle library it seems, memory stuff..)
-    corrMatrices = []
-    print "starting to load correlation matrices..."
-    for i in range(1,params.n1+1):
-        corrMatrices.append(loadFlattenedAdjacencyMatrix(params.mode1, i))
-    for i in range(1,params.n2+1):
-        corrMatrices.append(loadFlattenedAdjacencyMatrix(params.mode2, i))
-#    twoDindices = np.triu_indices_from(matrices[0], 1)
-#    data = []
-#    for matrix in matrices:
-#        data.append(matrix[twoDindices].flatten())
-#    data = np.array(data)
-    return np.array(corrMatrices)
 
-def mergeAndLoadNodeProperties():
+def load_mat(fname, squeeze_me=False):
     """
-    Load the individual node properties and combine them to a joint 
-    dictionary with structure:
-    data[prop][subjectNmovie->rest][nodeIndex] = value
+    Loads an arbitrary .mat file.
+
+    Parameters
+    ----------
+    fname : str
+        path to the .mat file
+    squeeze_me : bool
+        whether or not to squeeze additional
+        matrix dimensions used by matlab.
+
+    Returns
+    -------
+    data_dict : dict
+        a dictionary with the 'mat' variable names as keys,
+        and the actual matlab matrices/structs etc. as values
+
+    Limited support is also available for HDF-matlab files.
     """
-    return mergeAndLoadProperties(loadIndNodeProperties, params.nodeProps)
-    
-def mergeAndLoadGlobalUWProperties():
+    try:
+        data_dict = scipy.io.loadmat(fname, squeeze_me=squeeze_me)
+    except NotImplementedError as e:
+        if e.message == "Please use HDF reader for matlab v7.3 files":
+            import h5py
+            data = h5py.File(fname, "r")
+            data_dict = {}
+            for key in data.keys():
+                if squeeze_me:
+                    try:
+                        data_dict[key] = np.squeeze(data[key])
+                    except:
+                        data_dict[key] = data[key]
+                else:
+                    data_dict[key] = data[key]
+        else:
+            raise e
+    return data_dict
+
+
+def get_blacklist_filtered_adj_mat(fname, blacklist_fname):
     """
-    Load the individual global UW properties and combine them to a joint 
-    dictionary with structure:
-    data[prop][subjectNmovie->rest][p/nodeIndex/linkIndex] = value
+    Get a adj_mat from which the blacklist nodes have been
+    filtered out.
+
+    Parameters
+    ----------
+    fname : str
+        path to the .mat file containing the adj_mat
+    blacklist_fname : str
+        path to the blacklist (.mat file)
     """
-    return  mergeAndLoadProperties(loadIndGlobUWProperties, params.globUWProps)
-    
-def mergeAndLoadGlobalWProperties():
+    adj_mat = load_adj_matrix_from_mat(fname)
+    ok_nodes = get_ok_nodes(blacklist_fname)
+    adj_mat = adj_mat[ok_nodes, :][:, ok_nodes]
+    return adj_mat
+
+
+def get_blacklist_filtered_and_flattened_adj_mat(fname, blacklist_fname):
     """
-    Load the individual global UW properties and combine them to a joint 
-    dictionary with structure:
-    data[prop][subjectNmovie->rest][p/nodeIndex/linkIndex] = value
+    Get the blacklist filtered adj_mat in flattened (1D) form.
+    See :py:func:get_blacklist_filtered_adj_mat
+
+    Parameters
+    ----------
+    fname : str
+        path to the .mat file containing the adj_mat
+    blacklist_fname : str
+        path to the blacklist (.mat file)
+
+    Returns
+    -------
+    flat_adj_mat : numpy array
     """
-    return mergeAndLoadProperties(loadIndGlobWProperties, params.globWProps)
-    
-def mergeAndLoadLouvainProperties():
-    return mergeAndLoadProperties(loadIndLouvainProperties, params.louvainProps)
-    
-def mergeAndLoadProperties(indPropLoadFunc, props):
+    adj_mat = get_blacklist_filtered_adj_mat(fname, blacklist_fname)
+    two_d_indices = np.triu_indices_from(adj_mat, 1)
+    return adj_mat[two_d_indices].flatten()
+
+
+def get_blacklist_filtered_and_flattened_adj_mats(fnames, blacklist_fname):
     """
-    Load the individual properties (glob UW, glob W, node, link) 
+    Get all flattened+filtered corr/adj matrices corresponding to the fnames.
+
+    Parameters
+    ----------
+    fnames : list of strings
+        a list of (.mat) filenames corresponding to the matrices
+    """
+    # Some old notes:
+    # computing these beforehand + pickling -> error with unpicksling
+    # (a bug in the pickle library it seems, memory stuff..)
+    assert type(fnames) is list
+    corr_mats = []
+    for fname in fnames:
+        corr_mats.append(
+            get_blacklist_filtered_and_flattened_adj_mat(
+                fname, blacklist_fname
+            )
+        )
+    return np.array(corr_mats)
+
+
+def load_filtered_node_data(node_info_fname, blacklist_fname):
+    """
+    Get the blacklist filtered info about the network nodes.
+
+    Parameters
+    ----------
+    node_info_fname : str
+        the path to the node-info filename outputted
+        from `bramila <https://git.becs.aalto.fi/bml/bramila>`_
+    """
+    node_info = load_mat(node_info_fname, squeeze_me=True)['rois']
+    ok_nodes = get_ok_nodes(blacklist_fname)
+    return node_info[ok_nodes]
+
+
+# Make sense to mergeAndLoad! TODO!!!
+# def mergeAndLoadNodeProperties(fnames, percentage=None):
+#     """
+#     Load the individual node properties and combine them to a joint
+#     dictionary with structure:
+#     data[prop][subjectNmovie->rest][nodeIndex] = value
+#     """
+#     return mergeAndLoadProperties(fnames,
+#                                   fnc.getNodePropsIndividualFileName,
+#                                   settings.nodeProps,
+#                                   percentage)
+
+
+# def mergeAndLoadGlobalUWProperties(fnames):
+#     """
+#     Load the individual global UW properties and combine them to a joint
+#     dictionary with structure:
+#     data[prop][subjectNmovie->rest][p/nodeIndex/linkIndex] = value
+#     """
+#     return mergeAndLoadProperties(
+#         fnames,
+#         fnc.getGlobalUWPropsIndividualFileName,
+#         settings.globUWProps
+#     )
+
+
+# def mergeAndLoadGlobalWProperties(fnames):
+#     """
+#     Load the individual global UW properties and combine them to a joint
+#     dictionary with structure:
+#     data[prop][subjectNmovie->rest][p/nodeIndex/linkIndex] = value
+#     """
+#     return mergeAndLoadProperties(
+#         fnames,
+#         fnc.getGlobalWPropsIndividualFileName,
+#         settings.globWProps
+#     )
+
+
+# def mergeAndLoadLouvainProperties(fnames, density):
+#     return mergeAndLoadProperties(
+#         fnames,
+#         fnc.getLouvainClusteringIndividualFileName,
+#         settings.louvainProps,
+#         density
+#     )
+
+
+# def mergeAndLoadIndLinkDistances(fnames):
+#     return mergeAndLoadProperties(
+#         fnames,
+#         fnc.getLinkDistancesIndividualFileName,
+#         [settings.distance_tag]
+#     )
+
+
+# def mergeAndLoadIndAvgWeights(fnames):
+#     return mergeAndLoadProperties(
+#         fnames,
+#         fnc.getAvgStrengthIndividualFileName,
+#         [settings.avg_weight_tag]
+#     )
+
+
+def merge_and_load_props_data(fnames, props_tag,
+                              props, cfg):
+    """
+    Load the individual properties (glob UW, glob W, node, link)
     and combine them to a joint file with structure:
     data[prop][subjectN(movie...rest)][nodeIndex] = value
+
+    Parameters
+    ----------
+    fnames : list of strings
+        paths to the original filenames
+    props_tag : str
+        the tag of the property, as specified in :py:mod:`settings`
+        e.g. "global_uw_props" or "node_props" etc.
+    props : list of property tags
+    cfg : dict
+        a brainnets config dict
     """
-    dataDict = {}
+    data_dict = {}
     counter = 0
-    #loop over modes
-    for mode in params.modes:
-        #loop over subjects        
-        for i in range(1,params.mrNsubjs+1):
-            indData = indPropLoadFunc(mode, i)
-            #loop over properties
-            for prop in set(indData.keys()).intersection(props):
-                #initialize new properties:                    
-                if counter == 0:
-                    #l = number of nodes / percetages / or zero (modularity stuff)
-                    try:
-                        l = len(indData[prop])
-                    except:
-                        l=1
-                    dataDict[prop] = np.zeros( (params.n1+params.n2, l))
-                #add the data to the dict:
-                dataDict[prop][counter,:] = indData[prop]
-            counter += 1
-            try:
-                dataDict[params.percentages_abbr] = indData[params.percentages_abbr]
-            except:
-                pass
-    return dataDict
-
-
-def loadIndNodeProperties(mode, subjectNumber):
-    return loadPickle(params.getNodePropsIndividualFileName(mode, subjectNumber) )
-
-def loadIndGlobUWProperties(mode, subjectNumber):
-    return loadPickle(params.getGlobalUWPropsIndividualFileName(mode, subjectNumber) )
-
-def loadIndGlobWProperties(mode, subjectNumber):
-    return loadPickle(params.getGlobalWPropsIndividualFileName(mode, subjectNumber) )
-    
-def loadIndLouvainProperties(mode, subjectNumber):
-    return loadPickle(params.hetLouvainClusteringIndividualFileName(mode, subjectNumber) )
-    
-###
-### Filenaming conventions:
-###
-
-def getCorrMatFname(mode, i):
-    """
-    Returns the filename of the correlation matrix    
-    """
-    return params.inputDir+mode+"_"+str(i)+".mat"
-
-def getGlobalUWPropsIndividualFileName(mode, subjectNumber):
-    return params.outputDir + "globalUWProps_"+indFileEnding(mode, subjectNumber)
-        
-def getGlobalWPropsIndividualFileName(mode, subjectNumber):
-    return params.outputDir + "globalWProps_"+indFileEnding(mode, subjectNumber)
-    
-def getNodePropsIndividualFileName(mode, subjectNumber):
-    return params.outputDir + "nodeProps_"+indFileEnding(mode, subjectNumber)
-        
-def getLinkPropsIndividualFileName(mode, subjectNumber):
-    return params.outputDir + "linkProps_"+indFileEnding(mode, subjectNumber)
-
-def getLouvainClusteringIndividualFileName(mode, subjectNumber):
-    return params.outputDir + "louvainClustering_"+indFileEnding(mode, subjectNumber)
-
-def indFileEnding(mode, subjectNumber):
-    return mode+"_%d.pkl" %(subjectNumber)
-    
-    
-def getGlobalUWStatsFilename():
-    return params.outputDir+ "globalUWStats.pkl"
-
-def getGlobalWStatsFilename():
-    return params.outputDir + "globalWStats.pkl"
-    
-
-#p-values    
-def getNodePValStatsFilename():
-    return params.outputDir + "nodePVals.pkl"
-    
-def getCorrPValStatsFilename():
-    return params.outputDir + "corrPVals.pkl"
-
-    
-#dependent correlation stats
-def getNodeFDRStatsFilename(asym=False):
-    baseName = "nodeFDRStats"
-    if asym:
-        baseName+="_asym"        
-    return params.outputDir + baseName+".pkl"
-    
-def getLinkFDRStatsFilename(asym=False):
-    baseName = "linkFDRStats"
-    if asym:
-        baseName+="_asym"        
-    return params.outputDir + baseName+".pkl"
-    
-def getCorrFDRStatsFilename(asym=False):
-    baseName = "corrFDRStats"
-    if asym:
-        baseName+="_asym"        
-    return params.outputDir + baseName+".pkl"
-
-    
+    n = len(fnames)
+    # loop over modes
+    for fname in fnames:
+        ind_data = load_pickle(fnc.get_ind_fname(fname, cfg, props_tag))
+        # loop over properties
+        for prop in set(ind_data.keys()).intersection(props):
+            # initialize new properties:
+            if counter == 0:
+                # l = number of nodes / percetages / or zero (modularity stuff)
+                try:
+                    l = len(np.array(ind_data[prop]))
+                except:
+                    l = 1
+                # modularities are a bit falsely outputted:
+                if isinstance(ind_data[prop], basestring):
+                    l = 1
+                data_dict[prop] = np.zeros((n, l))
+            # add the data to the dict:
+            data_dict[prop][counter, :] = ind_data[prop]
+        counter += 1
+        try:
+            data_dict[settings.densities_tag] = \
+                ind_data[settings.densities_tag]
+        except:
+            pass
+    return data_dict

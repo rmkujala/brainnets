@@ -1,0 +1,13 @@
+#ignore tmp file
+*~
+
+#ignore oject.file
+*.o
+
+#ignore exec
+./louvain
+./convert
+./matrix
+./hierarchy
+
+
