@@ -2,19 +2,6 @@ from brainnets import settings
 import numpy as np
 import igraph
 
-# def comp_stable_community_adj_mat_based_on_best(fnames, density,
-#                                                 blacklist_fname):
-#     okNodes = dataio.get_ok_nodes(blacklist_fname)
-#     communities = []
-#     for fName in fnames:
-#         com = dataio.loadPickle(
-#                dataio.getLouvainClusteringIndividualFileName(
-#                       fName, density))[settings.louvain_cluster_tag][okNodes]
-#         communities.append(com)
-#     adjMat = make_adj_mat_from_partitions(communities, normalize=True)
-#     return adjMat
-
-
 def make_adj_mat_from_partitions(partitions, normalize=True):
     """
     Given a number of network partitions computes the weight
@@ -45,12 +32,6 @@ def make_adj_mat_from_partitions(partitions, normalize=True):
                 [np.tile(com_nodes, com_size), np.repeat(com_nodes, com_size)])
             adj_mat[coords] += 1
 
-#            for i in range(len(comNodes)):
-#                comNodeI = comNodes[i]
-#                for j in range(i+1, len(comNodes)):
-#                    comNodeJ = comNodes[j]
-#                    adj_mat[comNodeI, comNodeJ] += 1
-    # adj_mat += adj_mat.T #make it symmetric
     if normalize:
         adj_mat = adj_mat / float(len(partitions))
     return adj_mat
@@ -302,27 +283,6 @@ def match_clusters_greedy(clus1, clus2):
         matchClus = clus1
         matchCluSizesDict = clusizes_dict_1
 
-#    for matchCluLabel, _ in sorted(matchCluSizesDict.iteritems(),
-    # key=lambda x: -x[1]):
-#        matchClu = (matchClus == matchCluLabel)
-#        overLapDict = {}
-#        for refCluLabel in np.unique(refClus):
-#            refClu = (refClus==refCluLabel)
-#            overLap = refCluFreeDict[refCluLabel]*np.sum(refClu*matchClu)
-#            overLapDict[refCluLabel] = overLap
-# get largest overlap
-#        max_key, max_val = sorted(overLapDict.iteritems(),
-        # key=lambda x: -x[1])[0]
-#        if max_val > 0:
-#            matchClusNew[matchClu] = max_key
-#            refCluFreeDict[max_key] = 0
-#        else:
-# find
-#            freeKey = np.min(otherFreeIndices)
-#            otherFreeIndices[otherFreeIndices==freeKey] = \
-        # np.max(otherFreeIndices)+1
-#            matchClusNew[matchClu] = freeKey
-# pass # do nothing as no reasonable match was found
     # compute overlap matrix
     overLapMat = np.zeros((len(refCluSizesDict), len(matchCluSizesDict)))
     origRefCluLabels = np.array(refCluSizesDict.keys())
