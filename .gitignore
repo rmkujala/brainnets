@@ -9,6 +9,7 @@ testdata/output/*pdf
 .metadata/*
 testdata/output/*pkl
 *sublime*
+.idea/*
 
 /docs/coverage/
 /docs/build/

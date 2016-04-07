@@ -4,7 +4,6 @@ import unittest
 import numpy as np
 import igraph
 # brainnets
-# from brainnets.testscripts import mycfg
 from brainnets import gencomps, settings
 
 

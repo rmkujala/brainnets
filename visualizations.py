@@ -431,16 +431,6 @@ def _get_matched_renumbered_communities_for_viz(
     n_clu_1 = len(np.unique(filtered_clus_1))
     n_clu_2 = len(np.unique(filtered_clus_2))
 
-#    if n_clu_1 > n_clu_2:
-#        filtered_clus_2 = \
-#            gencomps.matchClustersHungarianAlgo(filtered_clus_1,
-#                                                filtered_clus_2)
-#    else:
-#        filtered_clus_1 = \
-#             gencomps.matchClustersHungarianAlgo(filtered_clus_2,
-#                                                 filtered_clus_1)
-# in place of the above(?)
-
     filtered_clus_1, filtered_clus_2 = \
         communities.match_clusters_greedy(filtered_clus_1,
                                           filtered_clus_2

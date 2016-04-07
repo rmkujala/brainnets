@@ -40,12 +40,9 @@ blacklist:
 **brainnets config dictionary**:
 
 - Brainnets functionality is mostly steered with a config object
-  (which is just a python dictionary)
+  (which is a simple python dictionary)
 - It is often enough for the user to give only the config object as a
   parameter to the functions
-- Use :py:func:`config.check_full_config` which makes a *lightweight*
-  sanity check of the input parameters (i.e. the existence of paths/files
-  are checked, but in general the contents of any files are not validated)
 - The meaning of the input parameters is shortly presented in the code,
   where all the different :py:attr:`config.CONFIG_KEYS` are listed
 - For an example config dictionary, look at testscritpts/myconfig.py
@@ -53,21 +50,22 @@ blacklist:
   object to a separate python module (something like in `myconfig.py`).
 - After you think you've got everything set up, check the validity of
   your config dicti using :py:func:`config.check_full_config` to avoid
-  simple, easily avoidable problems.
+  simple, easily avoidable problems. :py:func:`config.check_full_config`
+  makes a *lightweight* sanity check of the input parameters 
+  (i.e. the existence of paths/files are checked, but in general the 
+  contents of any files are not validated)
 
 
 Basic pipelines
 ===============
 See example data processing pipelines from
 ``tests/test_run_pipes.py``
-(There they are in form of a test, more explicit examples/demos to become.)
-
+(There they are in form of a test, more explicit examples/demos to be done.)
 
 Notes on data input and output
 ==============================
 The file format used internally by ``brainnets`` is Python's pickle_
-format.
-This choise has been made to enable easy input and output by
+format. This choise has been made to enable easy input and output by
 avoiding unnecessary file parsing.
 ("pickling" is actually the same as dumping the objects from memory.)
 Most of the time this does not require anything extra from the user.

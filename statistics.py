@@ -582,10 +582,12 @@ def pValuesToPFDRWithMatlab(pValues):
         pi0: the estimated proportion of the null distribution
                 (when two-dist. model is assumed)
     """
-    from mlabwrap import mlab  # start matlab only if needed
+    import matlab.engine
+    eng = matlab.engine.start_matlab()
     print pValues.shape
 
-    fdrs, qvals, pi0 = mlab.mafdr(np.array(pValues), nout=3)
+    fdrs, qvals, pi0 = eng.mafdr(np.array(pValues), nout=3)
+    eng.quit()
     fdrs = fdrs.ravel()
     qvals = qvals.ravel()
     pi0 = float(pi0)

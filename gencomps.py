@@ -450,7 +450,7 @@ def get_louvain_partitions(graph, weighted, n_it):
 
         if len(nodeList) is not len(graph.vs):
             new_max_clu = np.max(nodeList) + 1
-            while (len(graph.vs) - len(nodeList) is not 0):
+            while len(graph.vs) - len(nodeList) is not 0:
                 assert len(nodeList) in isolated_nodes, \
                     "something unexpected happened with Louvain"
                 nodeList.append(new_max_clu)
@@ -478,15 +478,23 @@ def comp_consensus_partition(clusterings, n_clu_to_be="median"):
     -------
     consensus_clu : a numpy array describing the clustering
     """
-    from mlabwrap import mlab  # matlab is only imported if needed
-    mlab.addpath(settings.package_dir + "/external_code/ClusterPack-V1.0")
+    import matlab.engine
+    eng = matlab.engine.start_matlab()
+    eng.addpath(settings.package_dir + "/external_code/ClusterPack-V1.0")
     clusterings = np.array(clusterings) + 1
     clu_nums = []
     for clu in clusterings:
         clu_nums.append(len(np.unique(clu)))
     if n_clu_to_be is "median":
         n_clu_to_be = int(np.median(clu_nums))
-    consensus_clu = mlab.mcla(clusterings, n_clu_to_be).flatten() - 1
+    to_matlab = []
+    for c in clusterings:
+        arr = [int(val) for val in c]
+        to_matlab.append(arr)
+    matlab_clusterings = matlab.int64(to_matlab)
+    consensus_clu = eng.mcla(matlab_clusterings, n_clu_to_be)
+    consensus_clu = np.array(consensus_clu[0])-1
+    eng.quit()
     return consensus_clu
 
 
@@ -501,12 +509,14 @@ def comp_partition_sim_mats(
     ----------
     membership_lists : list
         List of membership lists corresponding the partitions
+    measures : list
+        List of cluster similarity measures
 
     Returns
     -------
     result_dict : dict
         A dict where the key corresponds to the similarity measure and value
-        is a (upper triagonal) matrix containing the values of the similarity
+        is a (upper triangular) matrix containing the values of the similarity
         measures.
     """
     membership_lists = np.array(membership_lists, dtype=int)
@@ -693,26 +703,25 @@ def comp_scaled_inclusivity(partitions, normalize=True):
         node_SIs = node_SIs / (float(n_partitions * (n_partitions - 1) * 0.5))
     return node_SIs
 
-
-def matchClustersHungarianAlgo(cluster1, cluster2):
-    """
-    Match the clusters using Hungarian Algorithm
-    """
-    from rpy2.robjects import r
-    from rpy2.robjects import IntVector
-    import rpy2.robjects.numpy2ri
-    rpy2.robjects.numpy2ri.activate()
-    # cluster labels should be from 1:n
-    newCluster1 = np.zeros(len(cluster1))
-    newCluster2 = np.zeros(len(cluster2))
-    for i, label in enumerate(np.unique(cluster1)):
-        newCluster1[cluster1 == label] = i + 1
-    for i, label in enumerate(np.unique(cluster2)):
-        newCluster2[cluster2 == label] = i + 1
-
-    r.source(settings.package_dir + 'rfiles/community_structure.R')
-    hungarianmatch = r["hungarianmatch"]
-    cluster = hungarianmatch(IntVector(newCluster1), IntVector(newCluster2))
-    cluster = map(int, cluster)
-    result = np.array([c for c in cluster])
-    return result
+# def matchClustersHungarianAlgo(cluster1, cluster2):
+#     """
+#     Match the clusters using Hungarian Algorithm
+#     """
+#     from rpy2.robjects import r
+#     from rpy2.robjects import IntVector
+#     import rpy2.robjects.numpy2ri
+#     rpy2.robjects.numpy2ri.activate()
+#     # cluster labels should be from 1:n
+#     newCluster1 = np.zeros(len(cluster1))
+#     newCluster2 = np.zeros(len(cluster2))
+#     for i, label in enumerate(np.unique(cluster1)):
+#         newCluster1[cluster1 == label] = i + 1
+#     for i, label in enumerate(np.unique(cluster2)):
+#         newCluster2[cluster2 == label] = i + 1
+#
+#     r.source(settings.package_dir + 'rfiles/community_structure.R')
+#     hungarianmatch = r["hungarianmatch"]
+#     cluster = hungarianmatch(IntVector(newCluster1), IntVector(newCluster2))
+#     cluster = map(int, cluster)
+#     result = np.array([c for c in cluster])
+#     return result

@@ -217,9 +217,13 @@ def out_put_node_prop_to_nii(nodevals, out_fname,
     blacklist_fname : str
         the path to .mat file listing the blacklist
     """
-    from mlabwrap import mlab  # matlab is only imported if needed
-    mlab.addpath(settings.package_dir + "mfiles")
-    mlab.data2niivol(nodevals, blacklist_fname, node_info_fname, out_fname)
+    import matlab.engine
+    eng = matlab.engine.start_matlab()
+    eng.addpath(settings.package_dir + "mfiles")
+    nodevals = matlab.double(list(nodevals))
+    eng.addpath(settings.path_to_NIFTI_toolbox)
+    eng.data2niivol(nodevals, blacklist_fname, node_info_fname, out_fname, settings.ext_data_path)
+    eng.quit()
 
 
 def get_ok_nodes(blacklist_fname):
@@ -355,14 +359,14 @@ def get_blacklist_filtered_and_flattened_adj_mats(fnames, blacklist_fname):
         a list of (.mat) filenames corresponding to the matrices
     """
     # Some old notes:
-    # computing these beforehand + pickling -> error with unpicksling
+    # computing these beforehand + pickling -> error with unpickling
     # (a bug in the pickle library it seems, memory stuff..)
     assert type(fnames) is list
     corr_mats = []
-    for fname in fnames:
+    for filename in fnames:
         corr_mats.append(
             get_blacklist_filtered_and_flattened_adj_mat(
-                fname, blacklist_fname
+                filename, blacklist_fname
             )
         )
     return np.array(corr_mats)
@@ -381,70 +385,6 @@ def load_filtered_node_data(node_info_fname, blacklist_fname):
     node_info = load_mat(node_info_fname, squeeze_me=True)['rois']
     ok_nodes = get_ok_nodes(blacklist_fname)
     return node_info[ok_nodes]
-
-
-# Make sense to mergeAndLoad! TODO!!!
-# def mergeAndLoadNodeProperties(fnames, percentage=None):
-#     """
-#     Load the individual node properties and combine them to a joint
-#     dictionary with structure:
-#     data[prop][subjectNmovie->rest][nodeIndex] = value
-#     """
-#     return mergeAndLoadProperties(fnames,
-#                                   fnc.getNodePropsIndividualFileName,
-#                                   settings.nodeProps,
-#                                   percentage)
-
-
-# def mergeAndLoadGlobalUWProperties(fnames):
-#     """
-#     Load the individual global UW properties and combine them to a joint
-#     dictionary with structure:
-#     data[prop][subjectNmovie->rest][p/nodeIndex/linkIndex] = value
-#     """
-#     return mergeAndLoadProperties(
-#         fnames,
-#         fnc.getGlobalUWPropsIndividualFileName,
-#         settings.globUWProps
-#     )
-
-
-# def mergeAndLoadGlobalWProperties(fnames):
-#     """
-#     Load the individual global UW properties and combine them to a joint
-#     dictionary with structure:
-#     data[prop][subjectNmovie->rest][p/nodeIndex/linkIndex] = value
-#     """
-#     return mergeAndLoadProperties(
-#         fnames,
-#         fnc.getGlobalWPropsIndividualFileName,
-#         settings.globWProps
-#     )
-
-
-# def mergeAndLoadLouvainProperties(fnames, density):
-#     return mergeAndLoadProperties(
-#         fnames,
-#         fnc.getLouvainClusteringIndividualFileName,
-#         settings.louvainProps,
-#         density
-#     )
-
-
-# def mergeAndLoadIndLinkDistances(fnames):
-#     return mergeAndLoadProperties(
-#         fnames,
-#         fnc.getLinkDistancesIndividualFileName,
-#         [settings.distance_tag]
-#     )
-
-
-# def mergeAndLoadIndAvgWeights(fnames):
-#     return mergeAndLoadProperties(
-#         fnames,
-#         fnc.getAvgStrengthIndividualFileName,
-#         [settings.avg_weight_tag]
-#     )
 
 
 def merge_and_load_props_data(fnames, props_tag,

@@ -93,6 +93,10 @@ scaled_inclusivity_tag = "SI"
 import brainnets
 package_dir = brainnets.__path__[0] + "/"
 
+# adjust this to your liking, now configured to work at our premises in Aalto
+path_to_NIFTI_toolbox = '/m/nbe/scratch/braindata/shared/toolboxes/NIFTI'
+ext_data_path = package_dir + "ext_data/"
+
 _prop_tex_names = {
     avg_clustering_tag: r"Average clustering $C_a$",
     global_clustering_tag: r"Global clustering $C_g$",

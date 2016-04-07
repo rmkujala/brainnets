@@ -1,4 +1,4 @@
-function funpsy_interpvol_rainer(cfg);
+function funpsy_interpvol(cfg);
 
     psess=cfg.psess;
     rois=psess.rois;

@@ -3,8 +3,8 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-Welcome to brainnets's documentation (under construction)!
-==========================================================
+Welcome to brainnets's documentation!
+=====================================
 
 To get started, read through these:
 
@@ -14,6 +14,7 @@ To get started, read through these:
    brainnets
    tutorial
    notes
+   
 
 And then check out these for future use:
 
