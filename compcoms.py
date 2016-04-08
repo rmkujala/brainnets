@@ -1,6 +1,7 @@
 # import gc
 # third party
 import numpy as np
+import igraph
 # brainnets imports
 import aux
 import config
@@ -10,6 +11,89 @@ import fname_conventions as fnc
 import gencomps
 import netgen
 import settings
+
+
+def tag_to_igraph_comdet_method(tag):
+    tag_to_method = {f: m for f, m in vars(igraph.Graph).items()
+                     if (f == "community_" + tag)}
+    try:
+        return tag_to_method["community_" + tag]
+    except KeyError as e:
+        raise e
+
+
+def igraph_com_det_method_to_tag(igraph_com_det_method):
+    assert igraph_com_det_method.__name__[:10] == "community_"
+    return igraph_com_det_method.__name__[10:]
+
+
+def comp_communities_igraph(cfg, com_det_method, com_det_options_dict=None):
+    """
+    Computes communities for a certain network density for all
+    correlation matrices in ``cfg['all_fnames']``
+    The results are saved to the output folder (``cfg['outdata_dir']``)
+
+    Parameters
+    ----------
+    cfg : a brainnets config dict
+    com_det_method: str, or igraph function returning
+    com_det_options_dict: dict
+
+    Returns
+    -------
+    coms :
+        the communities as a membership list
+    """
+    if isinstance(com_det_method, str):
+        com_det_method = tag_to_igraph_comdet_method(com_det_method)
+    if com_det_options_dict is None:
+        com_det_options_dict = {}
+    config.require(cfg, ['all_fnames',
+                         'blacklist_fname',
+                         'density',
+                         'include_mst',
+                         'n_cpus',
+                         'n_it_comdet'
+                         ]
+                    )
+    arg_list = [(fname, cfg, com_det_method, com_det_options_dict)
+               for fname in cfg['all_fnames']]
+    coms = ch.run_in_parallel(_compute_coms_worker, arg_list, cfg['n_cpus'])
+    return coms
+
+
+def _compute_coms_worker(args):
+    """
+    Computes Louvain communities.
+    """
+    fname, cfg, com_det_method, com_det_options= args
+    coms = []
+    graph = netgen.get_graph_from_bare_data(
+        fname, cfg['blacklist_fname'], cfg['density'],
+        include_mst=cfg['include_mst'], weighted=False)
+    membershiplists = []
+    for i in range(cfg['n_it_comdet']):
+        clustering = com_det_method(graph, **com_det_options)
+        if isinstance(clustering, igraph.clustering.VertexDendrogram):
+            clustering = clustering.as_clustering()
+        membershiplists.append(clustering.membership)
+    coms = np.array(membershiplists)
+    ok_nodes = dataio.get_ok_nodes(cfg['blacklist_fname'])
+    # expand communities to non-filtered indices
+    unfiltered_coms = []
+    for i, com in enumerate(coms):
+        uf_com = dataio.expand_1D_node_vals_to_non_blacklisted_array(
+            com, ok_nodes
+        )
+        unfiltered_coms.append(uf_com)
+    unfiltered_coms = np.array(unfiltered_coms)
+    com_det_method_tag = igraph_com_det_method_to_tag(com_det_method)
+    out_fname = fnc.get_ind_fname(fname, cfg, com_det_method_tag)
+    out_dict = {com_det_method_tag : unfiltered_coms,
+                settings.config_tag         : cfg}
+    dataio.save_pickle(out_fname, out_dict)
+    print "finished " + fname
+    return unfiltered_coms
 
 
 def comp_louvain_communities(cfg):
@@ -32,7 +116,7 @@ def comp_louvain_communities(cfg):
         the corresponding values of modularity
     """
     config.require(cfg, ['all_fnames', 'blacklist_fname', 'density',
-                         'n_it_louvain', 'include_mst', 'n_cpus'])
+                         'n_it_comdet', 'include_mst', 'n_cpus'])
     argList = [(fname, cfg) for fname in cfg['all_fnames']]
     comsAndModularities = ch.run_in_parallel(
         _compute_louvain_coms_worker, argList, cfg['n_cpus'])
@@ -53,7 +137,7 @@ def _compute_louvain_coms_worker(args):
         fname, cfg['blacklist_fname'], cfg['density'],
         include_mst=cfg['include_mst'], weighted=False)
     louvain_coms_dict = \
-        gencomps.get_louvain_partitions(graph, False, cfg['n_it_louvain'])
+        gencomps.get_louvain_partitions(graph, False, cfg['n_it_comdet'])
     coms.extend(louvain_coms_dict[settings.louvain_cluster_tag])
     coms = np.array(coms)
     ok_nodes = dataio.get_ok_nodes(cfg['blacklist_fname'])
@@ -79,7 +163,8 @@ def _compute_louvain_coms_worker(args):
 
 def comp_consensus_partition(cfg, fnames_tag, out_fname,
                              n_clu_for_mcla='median',
-                             n_to_consider=None):
+                             n_to_consider=None,
+                             comdet_tag=None):
     """
     Computes a consensus partition.
 
@@ -98,9 +183,12 @@ def comp_consensus_partition(cfg, fnames_tag, out_fname,
         of clusters in the consensus partition
     n_to_consider : int/str, optional
         number of partitions to consider for obtaining consensus
-        defaults to considering all partitions
-        if "best" usest the partition with maximum modularity
-
+        defaults to considering _all_ partitions
+        if "best" uses the partition with maximum modularity
+        if available
+    comdet_tag: str, optional
+        e.g. "infomap"
+        defaulting to settings.louvain_cluster_tag (legacy)
 
     Returns
     -------
@@ -110,15 +198,17 @@ def comp_consensus_partition(cfg, fnames_tag, out_fname,
     config.require(cfg, [fnames_tag, 'blacklist_fname', 'density'])
 
     ok_nodes = dataio.get_ok_nodes(cfg['blacklist_fname'])
+    if comdet_tag is None:
+        comdet_tag = settings.louvain_cluster_tag
 
     # load clusterings
     clusterings = None
-    shapes = []
     ok_nodes = dataio.get_ok_nodes(cfg['blacklist_fname'])
     for fname in cfg[fnames_tag]:
-        indfname = fnc.get_ind_fname(fname, cfg, settings.louvain_cluster_tag)
+        indfname = fnc.get_ind_fname(fname, cfg, comdet_tag)
         data = dataio.load_pickle(indfname)
-        clus_raw = data[settings.louvain_cluster_tag]
+        clus_raw = data[comdet_tag]
+
         assert len(clus_raw[0]) >= np.sum(ok_nodes)
         if n_to_consider is not None:
             if isinstance(n_to_consider, int):
@@ -132,7 +222,6 @@ def comp_consensus_partition(cfg, fnames_tag, out_fname,
                     "n_to_consider should be an integer!"
 
         clus = clus_raw[:, ok_nodes]
-        shapes.append(clus.shape)
         if clusterings is None:
             # for first encounter
             clusterings = np.copy(clus)
@@ -143,11 +232,12 @@ def comp_consensus_partition(cfg, fnames_tag, out_fname,
     # (added for making sure a bug does not exist anymore)
     assert len(clusterings) == len(clus) * len(cfg[fnames_tag])
 
+    # print len(clusterings), n_clu_for_mcla
     consensus_clu = gencomps.comp_consensus_partition(
         clusterings, n_clu_for_mcla)
     consensus_clu = dataio.expand_1D_node_vals_to_non_blacklisted_array(
         consensus_clu, ok_nodes, default_value=-1)
-    out_dict = {settings.louvain_cluster_tag: consensus_clu,
+    out_dict = {comdet_tag: consensus_clu,
                 settings.config_tag: cfg}
 
     dataio.save_pickle(out_fname, out_dict)

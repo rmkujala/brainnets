@@ -6,8 +6,8 @@ import matplotlib
 
 
 """
-This module runs tests for plots using testdata and saves the plots to
-brainnets/testdata/output
+This module runs tests for plots using testdata
+and saves the plots to brainnets/testdata/output
 as *.pdf files.
 """
 

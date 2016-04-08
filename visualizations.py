@@ -274,7 +274,7 @@ def viz_node_props_for_ind(fname, prop_tag, cfg, savefig=True):
     return fig
 
 
-def viz_com_stru_for_ind(fname, cfg, i=0, savefig=True):
+def viz_com_stru_for_ind(fname, cfg, i=0, savefig=True, comdet_tag=None):
     """
     Visualizes the community structure for one subject.
 
@@ -286,16 +286,22 @@ def viz_com_stru_for_ind(fname, cfg, i=0, savefig=True):
         brainnets config dictionary
     i : int
         which com structure to plot if multiple communities have been computed
+    savefig : bool, optional
+        whether to save the fig or not
+    comdet_tag : str, optional
+        community detection tag
 
     Returns
     -------
     fig : matplotlib.Figure
         the figure with the brain properties plotted on the brain
     """
+    if comdet_tag is None:
+        comdet_tag = settings.louvain_cluster_tag
     data = dataio.load_pickle(
-        fnc.get_ind_fname(fname, cfg, settings.louvain_cluster_tag)
+        fnc.get_ind_fname(fname, cfg, comdet_tag)
     )
-    com = data[settings.louvain_cluster_tag][i]
+    com = data[comdet_tag][i]
     ok_nodes = dataio.get_ok_nodes(cfg['blacklist_fname'])
     com = com[ok_nodes]
     fig = viz_com_structure_using_slices(
@@ -304,7 +310,7 @@ def viz_com_stru_for_ind(fname, cfg, i=0, savefig=True):
     )
     if savefig:
         basename = (fnc.extract_basename(fname) + "_" +
-                    str(settings.louvain_cluster_tag) + "_" +
+                    str(comdet_tag) + "_" +
                     str(cfg["density"]) + "_" + str(i))
         fig.savefig(cfg['outdata_dir'] + basename + ".pdf", format="pdf")
     return fig
@@ -716,9 +722,9 @@ def cluster_diff_plot_with_matrices(
     print p_vals < p_t
 
 
-    # debug###############
+    # debug
     assert (mean_diffs == movie_avg_adj_mat - rest_avg_adj_mat).all()
-    one_sided_p_vals = p_vals / 2.0
+    # one_sided_p_vals = p_vals / 2.0
     col_p_vals = 2 - ((1 + np.sign(mean_diffs)) - np.sign(mean_diffs) * p_vals)
 
     cols = cmap(np.array(np.linspace(0, 1, len(p_val_limits) - 1)))
@@ -729,10 +735,10 @@ def cluster_diff_plot_with_matrices(
     max_ax12 = np.maximum(
         np.max(movie_avg_adj_mat), np.max(rest_avg_adj_mat)) * 1.2
     # weights = [1000, 3000, 10000, 30000, 50000]
+    # manually inserted for the paper
     weights = [500, 1500, 5000, 15000, 50000]
-
-
-
+    if max_ax12 < 5000 or max_ax12 > 100000:
+        weights = [max_ax12 / 100.0, max_ax12 / 10., max_ax12]
 
     _hinton(ax1, movie_avg_adj_mat,
             clusterColors=nodeColors, xlabel=xlabel, max_weight=max_ax12, scale_weights=weights)
@@ -753,6 +759,10 @@ def cluster_diff_plot_with_matrices(
 
     max_diff = np.max(abs_diff_mat)
     wscale_diff = [100, 300, 1000, 3000, 10000]
+    if max_diff < 3000 or max_diff > 100000:
+        wscale_diff = [max_diff/100.0, max_diff/10., max_diff]
+
+
     _hinton(ax3, abs_diff_mat, clusterColors=nodeColors,
             colorMatrix=colorMatrix, xlabel=xlabel,
             scale_weights=wscale_diff,
@@ -1279,31 +1289,31 @@ def plotAllCommunityVisualizations(
                     save_pickleData=True, recompute=recompute))
     return figsToReturn
 
-
-def _convert_igraph_2_netpython(igraph_net, add_weight_to_zero_links=True):
-    """
-    Creates a pynet.SymmNet instance from a given adjacency matrix.
-    Nodelabels are obtained from the 'names' parameter.
-
-    **Use this function only for layouting purposes!**
-    """
-    from netpython import pynet
-#   assert len(igraph_net.vs) == len(labels)
-    net = pynet.SymmNet(len(igraph_net.vs))
-
-    if igraph_net.summary()[9] == "W":
-        weights = np.array(igraph_net.es["weight"])
-    else:
-        weights = np.ones(len(igraph_net.es))
-
-    for i, edge in enumerate(igraph_net.es):
-        #        if weights[i] == 0:
-        if add_weight_to_zero_links:
-            net[edge.source, edge.target] = (weights[i] +
-                                             0.01 * np.max(weights))  # used only for layout
-        else:
-            net[edge.source, edge.target] = weights[i]
-    return net
+#
+# def _convert_igraph_2_netpython(igraph_net, add_weight_to_zero_links=True):
+#     """
+#     Creates a pynet.SymmNet instance from a given adjacency matrix.
+#     Nodelabels are obtained from the 'names' parameter.
+#
+#     **Use this function only for layouting purposes!**
+#     """
+#     from netpython import pynet
+# #   assert len(igraph_net.vs) == len(labels)
+#     net = pynet.SymmNet(len(igraph_net.vs))
+#
+#     if igraph_net.summary()[9] == "W":
+#         weights = np.array(igraph_net.es["weight"])
+#     else:
+#         weights = np.ones(len(igraph_net.es))
+#
+#     for i, edge in enumerate(igraph_net.es):
+#         #        if weights[i] == 0:
+#         if add_weight_to_zero_links:
+#             net[edge.source, edge.target] = (weights[i] +
+#                                              0.01 * np.max(weights))  # used only for layout
+#         else:
+#             net[edge.source, edge.target] = weights[i]
+#     return net
 
 # OLD STUFF THAT WAS USED FOR PLOTTING DIFF MAT AS A NETWORK:
 #

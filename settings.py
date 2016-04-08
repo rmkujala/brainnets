@@ -79,6 +79,8 @@ louvain_cluster_tag = "louvain_clusters"
 louvain_consensus_tag = "louvain_consensus_clusters"
 louvain_consensus_si_tag = "louvain_consensus_si"
 louvainProps = [modularity_tag, louvain_cluster_tag]
+# generic cluster tag
+# comdetmethodtag_cluster_tag
 undef_clu_label = -1
 
 # Clustering comparisons:

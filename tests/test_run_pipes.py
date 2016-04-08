@@ -53,10 +53,54 @@ class Test(unittest.TestCase):
         compcoms.comp_consensus_partition(
             self.cfg,
             'all_fnames',
-            consensus_out_fname)
+            consensus_out_fname,
+            n_to_consider="best"
+        )
 
         data = dataio.load(consensus_out_fname)
         partition = data[settings.louvain_cluster_tag]
+        filtered_partition = partition[
+            dataio.get_ok_nodes(self.cfg['blacklist_fname'])
+        ]
+        fig = viz.viz_com_structure_using_slices(filtered_partition, self.cfg)
+        fig.savefig(consensus_out_fname.replace(".pkl", ".pdf"), format="pdf")
+
+        fig = viz.comp_and_viz_cluster_diff_matrices(
+            partition,
+            self.cfg,
+            self.cfg['all_fnames'],
+            len(self.cfg['group_1_mat_fnames']),
+            vmin=-5,
+            vmax=5,
+            suptitle="",
+            recompute=True
+        )
+        fig.savefig(consensus_out_fname.replace(".pkl", "_coarse-grained.pdf"))
+
+    def test_modules_igraph(self):
+        tag = "multilevel"
+        compcoms.comp_communities_igraph(self.cfg, tag)
+        # viz individual
+        individual = 0
+        viz.viz_com_stru_for_ind(
+            self.cfg['all_fnames'][individual],
+            self.cfg
+        )
+
+        consensus_out_fname = (self.cfg['outdata_dir'] +
+                               tag +
+                               "_" + "all_fnames" + "_" +
+                               str(self.cfg['density']) +
+                               ".pkl")
+        compcoms.comp_consensus_partition(
+            self.cfg,
+            'all_fnames',
+            consensus_out_fname,
+            comdet_tag=tag
+        )
+
+        data = dataio.load(consensus_out_fname)
+        partition = data[tag]
         filtered_partition = partition[
             dataio.get_ok_nodes(self.cfg['blacklist_fname'])
         ]

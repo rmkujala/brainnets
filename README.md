@@ -28,7 +28,8 @@ Then open docs/build/html/index.html with your favourite browser and enjoy the d
 Licencing
 ---------
 
-In addition to the provided Python code, this software package distributes also open source code from other projects:
+In addition to the provided Python code (which is granted the MIT licence, see LICENCE.txt),
+this software package distributes also open source code from other projects:
 
 1. The ClusterPack library by A. Strehl for computing 'consensus communities'
 
@@ -45,11 +46,11 @@ In addition to the provided Python code, this software package distributes also 
 
 	http://sourceforge.net/projects/brainnetworks/
 
+4. Under ext_data we have  also included a background image to be used for visualizations.
+    This file originates from the FSL project: see this projects licensing terms at: http://fsl.fmrib.ox.ac.uk/fsl/
+    Note that their license may not cover commercial use.
 
 For more information on these pieces of software and their licensing, see the subdirectories of **external_code**.
-
-For general info on the code licensing, see LICENSE.txt
-
 
 
 

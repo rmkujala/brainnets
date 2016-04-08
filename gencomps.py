@@ -487,6 +487,7 @@ def comp_consensus_partition(clusterings, n_clu_to_be="median"):
         clu_nums.append(len(np.unique(clu)))
     if n_clu_to_be is "median":
         n_clu_to_be = int(np.median(clu_nums))
+    print n_clu_to_be
     to_matlab = []
     for c in clusterings:
         arr = [int(val) for val in c]

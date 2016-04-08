@@ -33,7 +33,7 @@ the meanings config parameters
 #         "group_1_color": "blue",
 #         "group_2_color": "red",
 # "include_mst": False,  # False,  # used in thresholding
-#         "n_it_louvain": 10,
+#         "n_it_comdet": 10,
 #         "n_it_permutation": "all",
 #         "paired": True,
 #         "n_cpus": 1,
@@ -71,7 +71,7 @@ def get_config():
         "group_1_color": "blue",
         "group_2_color": "red",
         "include_mst": False,  # False,  # used in thresholding
-        "n_it_louvain": 10,
+        "n_it_comdet": 10,
         "n_it_permutation": "all",
         "paired": True,
         "n_cpus": 1,

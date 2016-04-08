@@ -212,12 +212,18 @@ def plot_link_dist_probs_by_condition(cfg):
 
     Returns
     -------
-    fig : the matplotlib figure object
+    None
     """
     # CFGCHANGE?
     config.require(
-        cfg, ["group_1_mat_fnames", "group_2_mat_fnames", "group_1_color",
-              "group_2_color", "group_1_label", "group_2_label", "outdata_dir"]
+        cfg, ["group_1_mat_fnames",
+              "group_2_mat_fnames",
+              "group_1_color",
+              "group_2_color",
+              "group_1_label",
+              "group_2_label",
+              "outdata_dir",
+              "density"]
     )
     fname_group_list = [cfg["group_1_mat_fnames"], cfg["group_2_mat_fnames"]]
     colors = [cfg["group_1_color"], cfg["group_2_color"]]
@@ -243,7 +249,7 @@ def plot_link_dist_probs_by_condition(cfg):
                 fnc.get_ind_fname(fname, cfg, settings.link_distance_tag))
             p_f_dists = data[settings.link_distance_tag]
             for j, p in enumerate(densities):
-                print p
+                # print p
                 distances[j] = np.hstack((distances[j], p_f_dists[j]))
 
         # for individual plots:
@@ -253,25 +259,26 @@ def plot_link_dist_probs_by_condition(cfg):
         #         label=labels[i], color=colors[i])
         group_distances.append(distances)
 
-    fig = plt.figure(figsize=(12, 4))
     indices = range(len(densities))  # [6,7,10] #density indices
     print densities
     for k, j in enumerate(indices):
+        fig = plt.figure(figsize=(4, 3))
         p = densities[j]
-        ax = fig.add_subplot(1, 3, k + 1)
+        ax = fig.add_subplot(1, 1, 1)
         ax.set_xlabel(settings.get_prop_tex_name(settings.link_distance_tag))
         ax.set_ylabel(r"1-CDF(d)")
         print p, j
-        ax.text(.5, 0.10, r"$\rho$ = " + str(p) + "\%",
+        ax.text(.5, 0.10, r"$\rho$ = " + str(p*100) + "\%",
                 ha='center', va='center', transform=ax.transAxes)
         for i in range(len(fname_group_list)):
             genplots.plot_inv_cdf(
                 ax, group_distances[i][j], label=labels[i],
                 color=colors[i], yscale='log')
         plt.tight_layout()
-    fig.savefig(cfg['outdata_dir'] +
-                "linkDistProbs.pdf", format="pdf", bbox_inches="tight")
-    return fig
+        fig.savefig(cfg['outdata_dir'] +
+                    "linkDistProbs_"+str(p)+".pdf", format="pdf", bbox_inches="tight")
+        plt.close(fig)
+    return None
 
 
 def plot_pooled_corr_t_val_dists(cfg):

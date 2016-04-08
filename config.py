@@ -4,7 +4,6 @@ import numpy as np
 from matplotlib.colors import ColorConverter
 
 import settings
-
 CONFIG_KEYS = [
     # file names that are considered when computing networkwise properties
     "all_fnames",
@@ -35,9 +34,10 @@ CONFIG_KEYS = [
     "group_2_color",
     # include mst, used when thresholding
     "include_mst",
+    # which community detection algorithm to use
     # number of iterations used with the Louvain community detection algorithm
     # (Louvain algorithm is stochastic, thus runs can yeild different results)
-    "n_it_louvain",
+    "n_it_comdet",
     # number of permutations used in the
     "n_it_permutation",
     # information about the network nodes
@@ -56,6 +56,7 @@ CONFIG_KEYS = [
     # global weighted properties
     "global_w_props"
 ]
+
 
 
 def get_default_config():
@@ -162,7 +163,7 @@ def set_default(cfg, key):
         val = "blue"
     elif key is "include_mst":
         val = False  # do not include mst by default
-    elif key is "n_it_louvain":
+    elif key is "n_it_comdet":
         val = 100
     elif key is "paired":
         val = None  # no proper default
@@ -189,6 +190,8 @@ def set_default(cfg, key):
         val = settings.global_w_props
     elif key is "global_uw_props":
         val = settings.global_uw_props
+    elif key is "com_det_algo":
+        val = "louvain"
     cfg[key] = val
     return cfg
 
@@ -260,7 +263,7 @@ def check_property(cfg, key):
         assert len(val) > 0 and type(val) is str, _asm()
     elif key in ["paired", "include_mst"]:
         assert type(val) is bool, _asm()
-    elif key is "n_it_louvain":
+    elif key is "n_it_comdet":
         assert val >= 1, _asm()
     elif key is "n_it_permutation":
         if type(val) is str:
