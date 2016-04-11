@@ -95,8 +95,11 @@ scaled_inclusivity_tag = "SI"
 import brainnets
 package_dir = brainnets.__path__[0] + "/"
 
-# adjust this to your liking, now configured to work at our premises in Aalto
-path_to_NIFTI_toolbox = '/m/nbe/scratch/braindata/shared/toolboxes/NIFTI'
+# adjust this to your liking e.g. in your brainnets config file
+# by doing something like
+# import settings
+# settings.path_to_NIFTI_toolbox = "/path/to/NIFTI/"
+path_to_NIFTI_toolbox = '/m/cs/scratch/networks/rmkujala/libs/NIFTI'
 ext_data_path = package_dir + "ext_data/"
 
 _prop_tex_names = {

@@ -1,5 +1,6 @@
 
 # third party
+import os
 import scipy.io
 import numpy as np
 import cPickle as pickle
@@ -216,14 +217,27 @@ def out_put_node_prop_to_nii(nodevals, out_fname,
         the ROIS (from Enrico)
     blacklist_fname : str
         the path to .mat file listing the blacklist
+
+    Returns
+    -------
+    success : bool
+        whether the operation was successful or not
     """
     import matlab.engine
     eng = matlab.engine.start_matlab()
     eng.addpath(settings.package_dir + "mfiles")
     nodevals = matlab.double(list(nodevals))
-    eng.addpath(settings.path_to_NIFTI_toolbox)
-    eng.data2niivol(nodevals, blacklist_fname, node_info_fname, out_fname, settings.ext_data_path)
+    to_return = True
+    if os.path.exists(settings.path_to_NIFTI_toolbox):
+        eng.addpath(settings.path_to_NIFTI_toolbox)
+        eng.data2niivol(nodevals, blacklist_fname, node_info_fname, out_fname, settings.ext_data_path)
+    else:
+        print "Path to NIFTI toolbox is not set correctly at settings.path_to_NIFTI_toolbox"
+        print "Now: " + settings.path_to_NIFTI_toolbox
+        print "No nii file has been produced"
+        to_return = False
     eng.quit()
+    return to_return
 
 
 def get_ok_nodes(blacklist_fname):

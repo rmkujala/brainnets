@@ -220,6 +220,11 @@ def viz_nodewise_vals_using_slices(
         (to omit exactly zero values, the code needs improvement)
     slice_step : int
         how many 2mm slices are between images
+
+    Returns
+    -------
+    fig : matplotlib figure, or None
+        if everything goes ok, returns matplotlib figure, otherwise None
     """
     if vals_blacklist_filtered:
         ok_nodes = dataio.get_ok_nodes(blacklist_fname)
@@ -228,18 +233,19 @@ def viz_nodewise_vals_using_slices(
     pid_str = str(os.getpid())
     nii_fname = "/tmp/" + pid_str + ".nii"
 
-    dataio.out_put_node_prop_to_nii(
+    success = dataio.out_put_node_prop_to_nii(
         node_val_array,
         "/tmp/" + pid_str + ".nii",
         node_info_fname,
         blacklist_fname)
+    if not success:
+        # outputting node_prop_to_nii did not succeed
+        return None
     fig = viz_data_on_brain_using_slices(
         nii_fname, slices=slicedirs,
         colormap=cmap, cmap_lims=cmap_lims, T=T, slice_step=slice_step)
     os.remove(nii_fname)
     return fig
-
-# works
 
 
 def viz_node_props_for_ind(fname, prop_tag, cfg, savefig=True):
@@ -507,11 +513,15 @@ def plot_alluvial_diagram(consensus_clu_movie,
     else:
         plot_stabilities = False
 
-    rois = dataio.load_mat(node_info_fname, squeeze_me=True)["rois"]
     ok_nodes = dataio.get_ok_nodes(blacklist_fname)
-    okRois = rois[ok_nodes]
-    # okRoiAalLabels = okRois['better_label']
-    okRoiAalLabels = okRois['abbr']
+    try:
+        rois = dataio.load_mat(node_info_fname, squeeze_me=True)["rois"]
+        okRois = rois[ok_nodes]
+        # okRoiAalLabels = okRois['better_label']
+        okRoiAalLabels = okRois['abbr']
+    except:
+        # if something goes wrong with the above, set labels to ""
+        okRoiAalLabels = np.array([""] * sum(ok_nodes))
 
     if mask_large_cluster_with_gray:
         max_val = np.max([consensus_clu_movie, consensus_clu_rest])
@@ -632,7 +642,8 @@ def get_module_colors(sorted_clu_labels, n_cols=None):
     if n_cols is None:
         n_cols = np.max(sorted_clu_labels) + 1
     cols = colorhelp.get_distinct_colors(n_cols)
-    colors = cols[sorted_clu_labels]
+    scls = np.array([int(scl) for scl in sorted_clu_labels])
+    colors = cols[scls]
     assert len(colors) == len(sorted_clu_labels)
     return colors
 
@@ -1047,11 +1058,16 @@ def _hinton(ax, sizeMatrix, clusterColors=None, colorMatrix=None,
                  2], side_length, side_length,
                 facecolor=scale_box_color, edgecolor='k')
             ax.add_patch(rect)
-            ax.text(x_center - 0.9, y_locs[i], str(w),
+            if isinstance(w, int):
+                strw = str(w)
+            else:
+                strw = "%.2f" % w
+            ax.text(x_center - 0.9, y_locs[i], strw,
                     rotation=00, ha='right', va='center')
         ax.text(
-            x_center - 1.5, y_locs[-1] - 1.7,
-            r"\noindent Number \\ \noindent of links",
+            x_center - 1.5,
+            y_locs[-1] - 1.7,
+            r"Number of links",
             ha='center', va='center')
     else:
         ax.autoscale_view()

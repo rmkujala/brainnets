@@ -25,6 +25,13 @@ make docs # requires rst2html command line tool
 Then open docs/build/html/index.html with your favourite browser and enjoy the documentation :)
 
 
+Example Pipelines
+-----------------
+An example brainnets configuration file as well as a running script for producing coarse-graining plots is given
+under /examples/
+
+
+
 Licencing
 ---------
 
